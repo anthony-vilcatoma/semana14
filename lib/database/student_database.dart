@@ -2,16 +2,20 @@ import 'package:semana14/models/Student.dart';
 import 'package:semana14/models/student_fields.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'package:sqflite_common/sqlite_api.dart'; // If using sqflite_common_ffi or sqflite
 
 class StudentDatabase {
   static final StudentDatabase instance = StudentDatabase._internal();
+
   static Database? _database;
+
   StudentDatabase._internal();
 
   Future<Database> get database async {
-    if (database != null) {
+    if (_database != null) {
       return _database!;
     }
+
     _database = await _initDatabase();
     return _database!;
   }
@@ -27,24 +31,29 @@ class StudentDatabase {
   }
 
   Future<void> _createDatabase(Database db, _) async {
-    return await db.execute('''
-        CREATE TABLE ${StudentFields.tableName} (
-          ${StudentFields.id} ${StudentFields.idType},
-          ${StudentFields.nombre} ${StudentFields.textType},
-          ${StudentFields.carrera} ${StudentFields.textType},
-          ${StudentFields.fechaIngreso} ${StudentFields.dateType},
-          ${StudentFields.edad} ${StudentFields.intType},
-        )
-      ''');
+    // Define the SQL statement without trailing commas
+    String sqlStatement = '''
+    CREATE TABLE ${StudentFields.tableName} (
+      ${StudentFields.id} ${StudentFields.idType},
+      ${StudentFields.nombre} ${StudentFields.textType},
+      ${StudentFields.carrera} ${StudentFields.textType},
+      ${StudentFields.fechaIngreso} ${StudentFields.dateType},
+      ${StudentFields.edad} ${StudentFields.intType},
+      ${StudentFields.createdTime} ${StudentFields.dateType}
+    )
+  ''';
+
+    // Execute the SQL statement
+    await db.execute(sqlStatement);
   }
 
-  Future<Student> create(Student student) async {
+  Future<StudentModel> create(StudentModel student) async {
     final db = await instance.database;
     final id = await db.insert(StudentFields.tableName, student.toJson());
     return student.copy(id: id);
   }
 
-  Future<Student> read(int id) async {
+  Future<StudentModel> read(int id) async {
     final db = await instance.database;
     final maps = await db.query(
       StudentFields.tableName,
@@ -54,25 +63,26 @@ class StudentDatabase {
     );
 
     if (maps.isNotEmpty) {
-      return Student.fromJson(maps.first);
+      return StudentModel.fromJson(maps.first);
     } else {
       throw Exception('ID $id not found');
     }
   }
 
-  Future<List<Student>> readAll() async {
+  Future<List<StudentModel>> readAll() async {
     final db = await instance.database;
-    final result = await db.query(StudentFields.tableName);
-    return result.map((json) => Student.fromJson(json)).toList();
+    const orderBy = '${StudentFields.createdTime} DESC';
+    final result = await db.query(StudentFields.tableName, orderBy: orderBy);
+    return result.map((json) => StudentModel.fromJson(json)).toList();
   }
 
-  Future<int> update(Student student) async {
+  Future<int> update(StudentModel note) async {
     final db = await instance.database;
     return db.update(
       StudentFields.tableName,
-      student.toJson(),
+      note.toJson(),
       where: '${StudentFields.id} = ?',
-      whereArgs: [student.id],
+      whereArgs: [note.id],
     );
   }
 

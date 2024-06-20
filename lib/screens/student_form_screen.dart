@@ -1,99 +1,188 @@
 import 'package:flutter/material.dart';
+import 'package:semana14/database/student_database.dart';
 import 'package:semana14/models/Student.dart';
-import '../database/student_database.dart';
 
-class StudentFormScreen extends StatefulWidget {
-  final Student? student;
+class StudentDetailsView extends StatefulWidget {
+  const StudentDetailsView({Key? key, this.studentId}) : super(key: key);
 
-  StudentFormScreen({Key? key, this.student}) : super(key: key);
+  final int? studentId;
 
   @override
-  _StudentFormScreenState createState() => _StudentFormScreenState();
+  State<StudentDetailsView> createState() => _StudentDetailsViewState();
 }
 
-class _StudentFormScreenState extends State<StudentFormScreen> {
-  late TextEditingController _nombreController;
-  late TextEditingController _carreraController;
-  late TextEditingController _fechaIngresoController;
-  late TextEditingController _edadController;
+class _StudentDetailsViewState extends State<StudentDetailsView> {
+  StudentDatabase studentDatabase = StudentDatabase.instance;
+
+  TextEditingController nombreController = TextEditingController();
+  TextEditingController carreraController = TextEditingController();
+  TextEditingController fechaIngresoController = TextEditingController();
+  TextEditingController edadController = TextEditingController();
+
+  late StudentModel student;
+  bool isLoading = false;
+  bool isNewStudent = false;
 
   @override
   void initState() {
+    refreshStudent();
     super.initState();
-
-    _nombreController =
-        TextEditingController(text: widget.student?.nombre ?? '');
-    _carreraController =
-        TextEditingController(text: widget.student?.carrera ?? '');
-    _fechaIngresoController = TextEditingController(
-        text: widget.student?.fechaIngreso.toIso8601String() ?? '');
-    _edadController =
-        TextEditingController(text: widget.student?.edad.toString() ?? '');
   }
 
-  @override
-  void dispose() {
-    _nombreController.dispose();
-    _carreraController.dispose();
-    _fechaIngresoController.dispose();
-    _edadController.dispose();
-    super.dispose();
+  /// Gets the student from the database and updates the state.
+  /// If studentId is null, sets isNewStudent to true.
+  refreshStudent() {
+    if (widget.studentId == null) {
+      setState(() {
+        isNewStudent = true;
+      });
+      return;
+    }
+    studentDatabase.read(widget.studentId!).then((value) {
+      setState(() {
+        student = value;
+        nombreController.text = student.nombre;
+        carreraController.text = student.carrera;
+        fechaIngresoController.text = student.fechaIngreso.toString();
+        edadController.text = student.edad.toString();
+      });
+    });
+  }
+
+  /// Creates a new student if isNewStudent is true, else updates the existing student.
+  createOrUpdateStudent() {
+    setState(() {
+      isLoading = true;
+    });
+    final model = StudentModel(
+      nombre: nombreController.text,
+      carrera: carreraController.text,
+      fechaIngreso: DateTime.parse(fechaIngresoController.text),
+      edad: int.parse(edadController.text),
+      createdTime: DateTime.now(),
+    );
+    if (isNewStudent) {
+      studentDatabase.create(model).then((createdStudent) {
+        setState(() {
+          student = createdStudent;
+          isNewStudent = false; // Now editing existing student
+        });
+      });
+    } else {
+      model.id = student.id;
+      studentDatabase.update(model).then((_) {
+        setState(() {
+          student = model;
+        });
+      });
+    }
+    setState(() {
+      isLoading = false;
+    });
+  }
+
+  /// Deletes the student from the database and navigates back to the previous screen.
+  deleteStudent() {
+    studentDatabase.delete(student.id!);
+    Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black87,
       appBar: AppBar(
-        title: Text(widget.student == null
-            ? 'Agregar Estudiante'
-            : 'Editar Estudiante'),
+        backgroundColor: Colors.black87,
+        actions: [
+          Visibility(
+            visible: !isNewStudent,
+            child: IconButton(
+              onPressed: deleteStudent,
+              icon: const Icon(Icons.delete),
+            ),
+          ),
+          IconButton(
+            onPressed: createOrUpdateStudent,
+            icon: const Icon(Icons.save),
+          ),
+        ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: _nombreController,
-              decoration: InputDecoration(labelText: 'Nombre'),
-            ),
-            TextField(
-              controller: _carreraController,
-              decoration: InputDecoration(labelText: 'Carrera'),
-            ),
-            TextField(
-              controller: _fechaIngresoController,
-              decoration:
-                  InputDecoration(labelText: 'Fecha de Ingreso (yyyy-mm-dd)'),
-            ),
-            TextField(
-              controller: _edadController,
-              decoration: InputDecoration(labelText: 'Edad'),
-              keyboardType: TextInputType.number,
-            ),
-            SizedBox(height: 16.0),
-            ElevatedButton(
-              onPressed: () async {
-                final newStudent = Student(
-                  nombre: _nombreController.text,
-                  carrera: _carreraController.text,
-                  fechaIngreso: DateTime.parse(_fechaIngresoController.text),
-                  edad: int.parse(_edadController.text),
-                );
-
-                if (widget.student == null) {
-                  await StudentDatabase.instance.create(newStudent);
-                } else {
-                  final updatedStudent =
-                      newStudent.copy(id: widget.student!.id);
-                  await StudentDatabase.instance.update(updatedStudent);
-                }
-
-                Navigator.of(context).pop();
-              },
-              child: Text('Guardar'),
-            ),
-          ],
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: nombreController,
+                      cursorColor: Colors.white,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 30,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: 'Nombre',
+                        border: InputBorder.none,
+                        hintStyle: TextStyle(
+                          color: Colors.white,
+                          fontSize: 30,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    TextField(
+                      controller: carreraController,
+                      cursorColor: Colors.white,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: 'Carrera',
+                        border: InputBorder.none,
+                        hintStyle: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                        ),
+                      ),
+                    ),
+                    TextField(
+                      controller: fechaIngresoController,
+                      cursorColor: Colors.white,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: 'Fecha de Ingreso (YYYY-MM-DD)',
+                        border: InputBorder.none,
+                        hintStyle: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                        ),
+                      ),
+                    ),
+                    TextField(
+                      controller: edadController,
+                      cursorColor: Colors.white,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: 'Edad',
+                        border: InputBorder.none,
+                        hintStyle: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
         ),
       ),
     );

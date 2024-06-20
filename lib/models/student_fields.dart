@@ -5,6 +5,7 @@ class StudentFields {
     carrera,
     fechaIngreso,
     edad,
+    createdTime,
   ];
 
   static const String tableName = 'students';
@@ -12,6 +13,7 @@ class StudentFields {
   static const String textType = 'TEXT NOT NULL';
   static const String intType = 'INTEGER NOT NULL';
   static const String dateType = 'TEXT NOT NULL';
+  static const String createdTime = 'created_time';
 
   static const String id = '_id';
   static const String nombre = 'nombre';

@@ -1,18 +1,20 @@
 import 'package:semana14/models/student_fields.dart';
 
-class Student {
+class StudentModel {
   int? id;
   final String nombre;
   final String carrera;
   final DateTime fechaIngreso;
   final int edad;
+  final DateTime? createdTime;
 
-  Student({
+  StudentModel({
     this.id,
     required this.nombre,
     required this.carrera,
     required this.fechaIngreso,
     required this.edad,
+    this.createdTime,
   });
 
   Map<String, Object?> toJson() => {
@@ -21,29 +23,34 @@ class Student {
         StudentFields.carrera: carrera,
         StudentFields.fechaIngreso: fechaIngreso.toIso8601String(),
         StudentFields.edad: edad,
+        StudentFields.createdTime: createdTime?.toIso8601String(),
       };
 
-  factory Student.fromJson(Map<String, Object?> json) => Student(
+  factory StudentModel.fromJson(Map<String, Object?> json) => StudentModel(
         id: json[StudentFields.id] as int?,
         nombre: json[StudentFields.nombre] as String,
         carrera: json[StudentFields.carrera] as String,
         fechaIngreso:
             DateTime.parse(json[StudentFields.fechaIngreso] as String),
         edad: json[StudentFields.edad] as int,
+        createdTime:
+            DateTime.tryParse(json[StudentFields.createdTime] as String? ?? ''),
       );
 
-  Student copy({
+  StudentModel copy({
     int? id,
     String? nombre,
     String? carrera,
     DateTime? fechaIngreso,
     int? edad,
+    DateTime? createdTime,
   }) =>
-      Student(
+      StudentModel(
         id: id ?? this.id,
         nombre: nombre ?? this.nombre,
         carrera: carrera ?? this.carrera,
         fechaIngreso: fechaIngreso ?? this.fechaIngreso,
         edad: edad ?? this.edad,
+        createdTime: createdTime ?? this.createdTime,
       );
 }
